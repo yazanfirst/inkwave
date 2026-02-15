@@ -62,3 +62,19 @@ Use `lib/fulfillment/providers.ts` and implement:
 createFulfillmentOrder(order)
 ```
 Add API calls + mapping for Printful/Printify and switch via `settings.json`.
+
+## Vercel deployment troubleshooting (404 NOT_FOUND)
+If your `*.vercel.app` URL shows a plain Vercel `404: NOT_FOUND`, it usually means the deployment for that domain is missing or the wrong project/root is linked (not an app runtime error).
+
+Use this checklist:
+1. In Vercel Project Settings → **General**:
+   - Framework Preset: **Next.js**
+   - Root Directory: repository root (where `package.json` and `app/` are)
+2. Ensure env vars are set in Vercel:
+   - `ADMIN_USER`, `ADMIN_PASS`
+   - Optional: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`
+3. Redeploy latest commit from this branch.
+4. Verify deployment health endpoint:
+   - `https://<your-domain>/api/health` should return JSON.
+
+This repo includes `vercel.json` to make Vercel commands explicit and reduce misconfiguration risk.
