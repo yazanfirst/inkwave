@@ -1,34 +1,57 @@
 import { couponRepo, orderRepo, productRepo, settingsRepo } from '@/lib/data/repos';
 import { getFulfillmentProvider } from '@/lib/fulfillment/providers';
-import { evaluateCoupon } from '@/lib/coupons';
+import { buildCheckoutDetails, createCheckoutDigest, type CheckoutInputItem } from '@/lib/checkout';
+import { getStripeClient } from '@/lib/payment/stripe';
 import { money, uid } from '@/lib/utils';
 import { NextResponse } from 'next/server';
 
 export async function POST(req: Request) {
   const body = await req.json();
-  const products = await productRepo.list();
-  const settings = await settingsRepo.get();
-  const coupons = await couponRepo.list();
+  const [products, settings, coupons] = await Promise.all([productRepo.list(), settingsRepo.get(), couponRepo.list()]);
 
-  const items = body.items
-    .map((item: { productId: string; variantId: string; qty: number; design?: any }) => {
-      const product = products.find((p) => p.id === item.productId);
-      const variant = product?.variants.find((v) => v.id === item.variantId);
-      if (!product || !variant) return null;
-      return { productId: product.id, variantId: variant.id, qty: item.qty, unitPrice: variant.price, design: item.design };
-    })
-    .filter(Boolean);
+  const checkout = buildCheckoutDetails({
+    items: Array.isArray(body.items) ? (body.items as CheckoutInputItem[]) : [],
+    shippingMethod: body.shippingMethod,
+    couponCode: body.couponCode,
+    products,
+    settings,
+    coupons
+  });
 
-  if (!items.length) return NextResponse.json({ error: 'No valid items' }, { status: 400 });
+  if (!checkout) return NextResponse.json({ error: 'No valid items' }, { status: 400 });
 
-  const subtotal = money(items.reduce((s: number, i: any) => s + i.qty * i.unitPrice, 0));
-  const shippingCost = body.shippingMethod === 'Express' ? settings.shipping.express : settings.shipping.standard;
+  const paymentStatus = settings.checkoutMode === 'manual' ? 'unpaid' : 'paid';
+  if (settings.checkoutMode === 'stripe') {
+    if (!body.stripeSessionId || typeof body.stripeSessionId !== 'string') {
+      return NextResponse.json({ error: 'Missing Stripe session id' }, { status: 400 });
+    }
+    const stripe = getStripeClient();
+    if (!stripe) return NextResponse.json({ error: 'Stripe not configured' }, { status: 400 });
 
-  const coupon = coupons.find((c) => c.code === String(body.couponCode || '').toUpperCase());
-  const evalCoupon = evaluateCoupon(coupon, subtotal);
-  const discount = evalCoupon.valid ? evalCoupon.discount : 0;
-  if (coupon && evalCoupon.valid) {
-    coupon.usedCount += 1;
+    const session = await stripe.checkout.sessions.retrieve(body.stripeSessionId);
+    if (session.payment_status !== 'paid') {
+      return NextResponse.json({ error: 'Stripe payment is not complete' }, { status: 400 });
+    }
+
+    const digest = createCheckoutDigest({
+      items: checkout.items.map((item) => ({
+        productId: item.productId,
+        variantId: item.variantId,
+        qty: item.qty,
+        unitPrice: item.unitPrice
+      })),
+      shipping: checkout.shipping,
+      couponCode: body.couponCode,
+      total: checkout.total
+    });
+
+    if (session.metadata?.orderDigest !== digest) {
+      return NextResponse.json({ error: 'Checkout data does not match Stripe session' }, { status: 400 });
+    }
+  }
+
+  if (checkout.coupon && checkout.discount > 0) {
+    checkout.coupon.usedCount += 1;
     await couponRepo.saveAll(coupons);
   }
 
@@ -36,19 +59,25 @@ export async function POST(req: Request) {
     id: uid('ord'),
     createdAt: new Date().toISOString(),
     customer: body.customer,
-    items,
-    coupon: coupon && evalCoupon.valid ? { code: coupon.code, discount } : undefined,
-    shipping: { method: body.shippingMethod === 'Express' ? 'Express' : 'Standard', cost: shippingCost },
+    items: checkout.items.map((item) => ({
+      productId: item.productId,
+      variantId: item.variantId,
+      qty: item.qty,
+      unitPrice: item.unitPrice,
+      design: item.design
+    })),
+    coupon: checkout.coupon && checkout.discount > 0 ? { code: checkout.coupon.code, discount: checkout.discount } : undefined,
+    shipping: { method: checkout.shipping, cost: checkout.shippingCost },
     totals: {
-      subtotal,
-      discount,
-      shipping: shippingCost,
-      total: money(subtotal - discount + shippingCost)
+      subtotal: checkout.subtotal,
+      discount: checkout.discount,
+      shipping: checkout.shippingCost,
+      total: money(checkout.total)
     },
     payment: {
       mode: settings.checkoutMode,
       stripeSessionId: body.stripeSessionId,
-      status: settings.checkoutMode === 'manual' ? 'unpaid' : body.paid ? 'paid' : 'unpaid'
+      status: paymentStatus
     },
     fulfillment: { provider: settings.podProvider, status: 'pending', notes: '' }
   } as const;
