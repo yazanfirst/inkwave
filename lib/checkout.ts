@@ -4,6 +4,25 @@ import { money } from '@/lib/utils';
 import { createHash } from 'node:crypto';
 
 export type CheckoutInputItem = { productId: string; variantId: string; qty: number; design?: unknown };
+type ShippingMethod = 'Standard' | 'Express';
+
+type CheckoutDetails = {
+  items: Array<{
+    productId: string;
+    productTitle: string;
+    variantId: string;
+    variantLabel: string;
+    qty: number;
+    unitPrice: number;
+    design?: unknown;
+  }>;
+  shipping: ShippingMethod;
+  shippingCost: number;
+  subtotal: number;
+  coupon?: Coupon;
+  discount: number;
+  total: number;
+};
 
 type BuildCheckoutArgs = {
   items: CheckoutInputItem[];
@@ -14,7 +33,7 @@ type BuildCheckoutArgs = {
   coupons: Coupon[];
 };
 
-export function buildCheckoutDetails({ items: rawItems, shippingMethod, couponCode, products, settings, coupons }: BuildCheckoutArgs) {
+export function buildCheckoutDetails({ items: rawItems, shippingMethod, couponCode, products, settings, coupons }: BuildCheckoutArgs): CheckoutDetails | null {
   const items = rawItems
     .map((item) => {
       const qty = Number(item.qty);
@@ -37,7 +56,7 @@ export function buildCheckoutDetails({ items: rawItems, shippingMethod, couponCo
   if (!items.length) return null;
 
   const subtotal = money(items.reduce((sum, item) => sum + item.qty * item.unitPrice, 0));
-  const shipping = shippingMethod === 'Express' ? 'Express' : 'Standard';
+  const shipping: ShippingMethod = shippingMethod === 'Express' ? 'Express' : 'Standard';
   const shippingCost = shipping === 'Express' ? settings.shipping.express : settings.shipping.standard;
 
   const coupon = coupons.find((c) => c.code === String(couponCode || '').toUpperCase());
