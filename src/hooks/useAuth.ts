@@ -7,7 +7,7 @@ export const useAuth = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const checkAdmin = useCallback(async (userId: string): Promise<boolean> => {
+  const checkAdmin = useCallback(async (userId: string): Promise<boolean | null> => {
     try {
       const query = supabase
         .from("user_roles")
@@ -29,6 +29,10 @@ export const useAuth = () => {
       }
       return !!data;
     } catch (err) {
+      if (err instanceof Error && err.message === "checkAdmin timeout") {
+        console.warn("checkAdmin timed out; preserving previous admin state");
+        return null;
+      }
       console.error("checkAdmin exception:", err);
       return false;
     }
@@ -45,7 +49,7 @@ export const useAuth = () => {
         setUser(currentUser);
         if (currentUser) {
           const admin = await checkAdmin(currentUser.id);
-          if (mounted) setIsAdmin(admin);
+          if (mounted && admin !== null) setIsAdmin(admin);
         }
       } catch (err) {
         console.error("Auth init error:", err);
@@ -64,7 +68,7 @@ export const useAuth = () => {
 
         if (currentUser) {
           const admin = await checkAdmin(currentUser.id);
-          if (mounted) setIsAdmin(admin);
+          if (mounted && admin !== null) setIsAdmin(admin);
         } else {
           setIsAdmin(false);
         }
