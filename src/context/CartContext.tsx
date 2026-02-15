@@ -11,7 +11,7 @@ export interface CartItem {
 
 interface CartContextType {
   items: CartItem[];
-  addItem: (item: Omit<CartItem, "quantity">) => void;
+  addItem: (item: Omit<CartItem, "quantity">) => boolean;
   removeItem: (id: string) => void;
   updateQuantity: (id: string, qty: number) => void;
   clearCart: () => void;
@@ -41,13 +41,30 @@ const loadStoredCart = (): CartItem[] => {
   }
 };
 
+const compactCartForStorage = (items: CartItem[]): CartItem[] => {
+  return items.map((item) => {
+    const isLargeDataUrl = item.image.startsWith("data:") && item.image.length > 300_000;
+    if (!isLargeDataUrl) return item;
+
+    return { ...item, image: "/placeholder.svg" };
+  });
+};
+
 const persistCart = (items: CartItem[]): boolean => {
   try {
     localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
     return true;
   } catch (error) {
-    console.error("Failed to save cart to storage:", error);
-    return false;
+    console.warn("Cart save failed, trying compact fallback:", error);
+
+    try {
+      const compactItems = compactCartForStorage(items);
+      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(compactItems));
+      return true;
+    } catch (compactError) {
+      console.error("Failed to save cart to storage:", compactError);
+      return false;
+    }
   }
 };
 
@@ -64,20 +81,26 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [couponCode, setCouponCode] = useState("");
   const [discount, setDiscount] = useState(0);
 
-  const addItem = (item: Omit<CartItem, "quantity">) => {
+  const addItem = (item: Omit<CartItem, "quantity">): boolean => {
+    let saved = false;
+
     setItems((prev) => {
       const existing = prev.find((i) => i.id === item.id);
       const nextItems = existing
         ? prev.map((i) => i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i)
         : [...prev, { ...item, quantity: 1 }];
 
-      if (!persistCart(nextItems)) {
-        toast.error("Could not save this cart item. Please try a smaller image.");
-        return prev;
-      }
+      saved = persistCart(nextItems);
+      if (!saved) return prev;
 
       return nextItems;
     });
+
+    if (!saved) {
+      toast.error("Could not save cart. Browser storage is full.");
+    }
+
+    return saved;
   };
 
   const removeItem = (id: string) => {

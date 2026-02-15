@@ -394,12 +394,15 @@ const Customize = () => {
     ctx.drawImage(canvas, 0, 0, previewCanvas.width, previewCanvas.height);
     const preview = previewCanvas.toDataURL("image/jpeg", 0.82);
 
-    addItem({
+    const added = addItem({
       id: `custom-${Date.now()}`,
       name: `Custom ${selectedTemplate.name}`,
       price: selectedTemplate.price,
       image: preview,
     });
+
+    if (!added) return;
+
     toast.success(`Custom ${selectedTemplate.name} added to cart!`);
     reset();
   };
