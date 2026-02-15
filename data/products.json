@@ -1,0 +1,39 @@
+[
+  {
+    "id": "prod_wave_tee",
+    "title": "InkWave Spectrum Tee",
+    "description": "Heavyweight premium t-shirt featuring a glossy rainbow wave print built for custom overlays.",
+    "category": "T-Shirts",
+    "tags": ["rainbow", "ink", "wave"],
+    "images": ["/uploads/sample-tee.svg"],
+    "variants": [
+      {"id": "var_wave_tee_s_black", "size": "S", "color": "Black", "sku": "INK-TS-BLK-S", "baseCost": 12, "price": 24.99, "inStock": true},
+      {"id": "var_wave_tee_m_black", "size": "M", "color": "Black", "sku": "INK-TS-BLK-M", "baseCost": 12, "price": 24.99, "inStock": true}
+    ],
+    "designer": {
+      "enabled": true,
+      "printAreas": [{"view":"front","x":0.28,"y":0.22,"w":0.44,"h":0.5}],
+      "export": {"width":4500,"height":5400}
+    },
+    "createdAt": "2026-01-01T00:00:00.000Z",
+    "updatedAt": "2026-01-01T00:00:00.000Z"
+  },
+  {
+    "id": "prod_wave_hoodie",
+    "title": "Neon Drift Hoodie",
+    "description": "Ultra-soft fleece hoodie with energetic splash gradients and premium DTG readiness.",
+    "category": "Hoodies",
+    "tags": ["hoodie", "neon"],
+    "images": ["/uploads/sample-hoodie.svg"],
+    "variants": [
+      {"id": "var_wave_hoodie_l_black", "size": "L", "color": "Black", "sku": "INK-HD-BLK-L", "baseCost": 19, "price": 49.99, "inStock": true}
+    ],
+    "designer": {
+      "enabled": true,
+      "printAreas": [{"view":"front","x":0.24,"y":0.22,"w":0.52,"h":0.56}],
+      "export": {"width":4500,"height":5400}
+    },
+    "createdAt": "2026-01-01T00:00:00.000Z",
+    "updatedAt": "2026-01-01T00:00:00.000Z"
+  }
+]

@@ -1,0 +1,8 @@
+{
+  "storeName":"InkWave Prints",
+  "tagline":"Print on Demand",
+  "currency":"USD",
+  "shipping":{"standard":5,"express":15},
+  "checkoutMode":"manual",
+  "podProvider":"manual"
+}
