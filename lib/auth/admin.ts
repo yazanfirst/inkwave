@@ -1,11 +1,23 @@
 import { cookies } from 'next/headers';
-import { createHash, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 
 const TOKEN_NAME = 'inkwave_admin';
 const attempts = new Map<string, { count: number; ts: number }>();
 
 function hash(input: string) {
   return createHash('sha256').update(input).digest();
+}
+
+function getSessionSecret() {
+  return process.env.ADMIN_SESSION_SECRET ?? process.env.ADMIN_PASS ?? 'inkwave-dev-admin-secret';
+}
+
+function sign(value: string) {
+  return createHmac('sha256', getSessionSecret()).update(value).digest('base64url');
+}
+
+function safeEqualText(a: string, b: string) {
+  return timingSafeEqual(Buffer.from(a), Buffer.from(b));
 }
 
 export function validateAdminLogin(username: string, password: string, ip: string) {
@@ -28,7 +40,16 @@ export function validateAdminLogin(username: string, password: string, ip: strin
 }
 
 export function setAdminSession() {
-  cookies().set(TOKEN_NAME, '1', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/' });
+  const exp = Date.now() + 24 * 60 * 60_000;
+  const payload = `${exp}.${randomUUID()}`;
+  const token = `${payload}.${sign(payload)}`;
+  cookies().set(TOKEN_NAME, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 24 * 60 * 60
+  });
 }
 
 export function clearAdminSession() {
@@ -36,5 +57,16 @@ export function clearAdminSession() {
 }
 
 export function isAdminAuthenticated() {
-  return cookies().get(TOKEN_NAME)?.value === '1';
+  const raw = cookies().get(TOKEN_NAME)?.value;
+  if (!raw) return false;
+  const parts = raw.split('.');
+  if (parts.length < 3) return false;
+  const sig = parts.pop() as string;
+  const payload = parts.join('.');
+  const expectedSig = sign(payload);
+  if (sig.length !== expectedSig.length || !safeEqualText(sig, expectedSig)) return false;
+
+  const [expText] = payload.split('.', 1);
+  const exp = Number(expText);
+  return Number.isFinite(exp) && Date.now() < exp;
 }

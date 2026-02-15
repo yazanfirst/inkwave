@@ -1,9 +1,47 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+
+const STRIPE_PENDING_KEY = 'inkwave_pending_checkout';
 
 export function CheckoutClient({ checkoutMode, shipping }: { checkoutMode: 'stripe' | 'manual'; shipping: { standard: number; express: number } }) {
   const [status, setStatus] = useState('');
+  const [processingStripeSuccess, setProcessingStripeSuccess] = useState(false);
+
+  useEffect(() => {
+    if (checkoutMode !== 'stripe') return;
+
+    const params = new URLSearchParams(window.location.search);
+    const isSuccess = params.get('success') === '1';
+    const sessionId = params.get('session_id');
+    if (!isSuccess || !sessionId) return;
+
+    const rawPayload = sessionStorage.getItem(STRIPE_PENDING_KEY);
+    if (!rawPayload) {
+      setStatus('Missing checkout data for Stripe confirmation. Please try again.');
+      return;
+    }
+
+    setProcessingStripeSuccess(true);
+    const payload = JSON.parse(rawPayload);
+    fetch('/api/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...payload, stripeSessionId: sessionId })
+    })
+      .then(async (res) => ({ ok: res.ok, data: await res.json() }))
+      .then(({ ok, data }) => {
+        if (ok) {
+          localStorage.removeItem('cart');
+          sessionStorage.removeItem(STRIPE_PENDING_KEY);
+          setStatus(`Order placed: ${data.orderId}`);
+          window.history.replaceState({}, '', '/checkout');
+        } else {
+          setStatus(data.error || 'Checkout failed');
+        }
+      })
+      .finally(() => setProcessingStripeSuccess(false));
+  }, [checkoutMode]);
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -31,14 +69,21 @@ export function CheckoutClient({ checkoutMode, shipping }: { checkoutMode: 'stri
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          successUrl: `${location.origin}/checkout?success=1`,
+          successUrl: `${location.origin}/checkout?success=1&session_id={CHECKOUT_SESSION_ID}`,
           cancelUrl: `${location.origin}/checkout?cancel=1`,
-          items: [{ quantity: 1, price_data: { currency: 'usd', product_data: { name: 'InkWave Order' }, unit_amount: 1000 } }]
+          shippingMethod: payload.shippingMethod,
+          couponCode: payload.couponCode,
+          items: payload.items
         })
       }).then((r) => r.json());
-      payload.stripeSessionId = stripe.id;
-      payload.paid = true;
-      if (stripe.url) location.href = stripe.url;
+
+      if (stripe.url) {
+        sessionStorage.setItem(STRIPE_PENDING_KEY, JSON.stringify(payload));
+        location.href = stripe.url;
+        return;
+      }
+      setStatus(stripe.error || 'Failed to start Stripe checkout');
+      return;
     }
 
     const res = await fetch('/api/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -68,6 +113,7 @@ export function CheckoutClient({ checkoutMode, shipping }: { checkoutMode: 'stri
       <p className="text-xs text-white/60">Shipping: Standard ${shipping.standard}, Express ${shipping.express}</p>
       <input name="couponCode" placeholder="Coupon code" className="w-full rounded bg-white/10 p-2" />
       <button className="rounded bg-inkwave-gradient px-4 py-2 font-semibold text-black">{checkoutMode === 'stripe' ? 'Pay with Stripe' : 'Place Order'}</button>
+      {processingStripeSuccess && <p className="text-sm text-white/70">Finalizing Stripe payment…</p>}
       {status && <p className="text-sm text-emerald-300">{status}</p>}
     </form>
   );
