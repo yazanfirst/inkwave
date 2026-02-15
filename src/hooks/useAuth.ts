@@ -9,12 +9,20 @@ export const useAuth = () => {
 
   const checkAdmin = useCallback(async (userId: string): Promise<boolean> => {
     try {
-      const { data, error } = await supabase
+      const query = supabase
         .from("user_roles")
         .select("role")
         .eq("user_id", userId)
         .eq("role", "admin")
         .maybeSingle();
+
+      const { data, error } = await Promise.race([
+        query,
+        new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error("checkAdmin timeout")), 8000);
+        }),
+      ]);
+
       if (error) {
         console.error("checkAdmin error:", error);
         return false;
@@ -48,8 +56,8 @@ export const useAuth = () => {
 
     init();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      void (async () => {
         if (!mounted) return;
         const currentUser = session?.user ?? null;
         setUser(currentUser);
@@ -61,8 +69,8 @@ export const useAuth = () => {
           setIsAdmin(false);
         }
         if (mounted) setLoading(false);
-      }
-    );
+      })();
+    });
 
     return () => {
       mounted = false;
