@@ -18,7 +18,7 @@ const Admin = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!loading && (!user || !isAdmin)) {
+    if (!loading && (!user || isAdmin === false)) {
       navigate("/admin-login");
     }
   }, [user, isAdmin, loading, navigate]);
@@ -91,7 +91,20 @@ const Admin = () => {
     );
   }
 
-  if (!user || !isAdmin) return null;
+  if (!user || isAdmin === false) return null;
+
+  if (isAdmin === null) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="flex flex-col items-center gap-3 text-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          <p className="text-sm text-muted-foreground">
+            We're still verifying your admin permissions. Please wait a moment...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const tabs = [
     { key: "products" as const, label: "Products", icon: Package, count: products.length },
