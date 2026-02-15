@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ChangeEvent } from "react";
 import { getProducts, saveProducts, type Product } from "@/data/defaultProducts";
 import { toast } from "sonner";
 import { Trash2, Plus, Package, Tag, ShoppingBag, LogOut, TrendingUp, BarChart3, ImagePlus } from "lucide-react";
@@ -31,7 +31,12 @@ const Admin = () => {
   const [pForm, setPForm] = useState({ name: "", description: "", price: "", category: "", image: "", featured: false });
   const [cForm, setCForm] = useState({ code: "", type: "percentage" as "percentage" | "fixed", value: "" });
 
-  useEffect(() => { saveProducts(products); }, [products]);
+  useEffect(() => {
+    const saved = saveProducts(products);
+    if (!saved) {
+      toast.error("Product changes could not be saved in browser storage. Try a smaller image.");
+    }
+  }, [products]);
   useEffect(() => { localStorage.setItem("inkwave-coupons", JSON.stringify(coupons)); }, [coupons]);
 
   const addProduct = () => {
@@ -67,9 +72,16 @@ const Admin = () => {
     toast.success("Coupon deleted");
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    const maxSizeBytes = 1024 * 1024; // 1MB
+    if (file.size > maxSizeBytes) {
+      toast.error("Image is too large. Please upload an image under 1MB.");
+      return;
+    }
+
     const reader = new FileReader();
     reader.onloadend = () => setPForm({ ...pForm, image: reader.result as string });
     reader.readAsDataURL(file);
