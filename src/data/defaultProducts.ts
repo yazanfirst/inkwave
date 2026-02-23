@@ -73,11 +73,27 @@ export const defaultProducts: Product[] = [
 ];
 
 export const getProducts = (): Product[] => {
-  const custom = localStorage.getItem("inkwave-products");
-  if (custom) return JSON.parse(custom);
-  return defaultProducts;
+  try {
+    const custom = localStorage.getItem("inkwave-products");
+    if (!custom) return defaultProducts;
+
+    const parsed = JSON.parse(custom);
+    if (!Array.isArray(parsed)) return defaultProducts;
+
+    return parsed;
+  } catch (error) {
+    console.error("Failed to load stored products:", error);
+    localStorage.removeItem("inkwave-products");
+    return defaultProducts;
+  }
 };
 
-export const saveProducts = (products: Product[]) => {
-  localStorage.setItem("inkwave-products", JSON.stringify(products));
+export const saveProducts = (products: Product[]): boolean => {
+  try {
+    localStorage.setItem("inkwave-products", JSON.stringify(products));
+    return true;
+  } catch (error) {
+    console.error("Failed to save products:", error);
+    return false;
+  }
 };

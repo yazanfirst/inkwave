@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Palette } from "lucide-react";
 import heroBg from "@/assets/hero-bg.jpg";
 
 const HeroBanner = () => (
@@ -22,12 +22,20 @@ const HeroBanner = () => (
         <p className="mt-4 text-lg text-primary-foreground/80 font-light">
           Premium print on demand products — custom t-shirts, mugs, phone cases and more. Designed to stand out.
         </p>
-        <Link
-          to="/shop"
-          className="mt-8 inline-flex items-center gap-2 rounded-lg bg-secondary px-6 py-3 font-semibold text-secondary-foreground hover:bg-secondary/90 transition-colors"
-        >
-          Shop Now <ArrowRight className="h-4 w-4" />
-        </Link>
+        <div className="mt-8 flex flex-wrap gap-3">
+          <Link
+            to="/shop"
+            className="inline-flex items-center gap-2 rounded-lg bg-secondary px-6 py-3 font-semibold text-secondary-foreground hover:bg-secondary/90 transition-colors"
+          >
+            Shop Now <ArrowRight className="h-4 w-4" />
+          </Link>
+          <Link
+            to="/customize"
+            className="inline-flex items-center gap-2 rounded-lg border border-primary-foreground/35 bg-primary-foreground/10 px-6 py-3 font-semibold text-primary-foreground hover:bg-primary-foreground/20 transition-colors"
+          >
+            You can design your own <Palette className="h-4 w-4" />
+          </Link>
+        </div>
       </motion.div>
     </div>
   </section>

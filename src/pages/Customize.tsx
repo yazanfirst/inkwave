@@ -372,14 +372,37 @@ const Customize = () => {
       toast.error("Add at least one design element first!");
       return;
     }
+
     const canvas = canvasRef.current;
-    const preview = canvas?.toDataURL("image/png") || "";
-    addItem({
+    if (!canvas) {
+      toast.error("Could not capture preview. Please try again.");
+      return;
+    }
+
+    const maxPreviewSize = 700;
+    const scale = Math.min(1, maxPreviewSize / Math.max(canvas.width, canvas.height));
+    const previewCanvas = document.createElement("canvas");
+    previewCanvas.width = Math.max(1, Math.floor(canvas.width * scale));
+    previewCanvas.height = Math.max(1, Math.floor(canvas.height * scale));
+
+    const ctx = previewCanvas.getContext("2d");
+    if (!ctx) {
+      toast.error("Could not prepare preview. Please try again.");
+      return;
+    }
+
+    ctx.drawImage(canvas, 0, 0, previewCanvas.width, previewCanvas.height);
+    const preview = previewCanvas.toDataURL("image/jpeg", 0.82);
+
+    const added = addItem({
       id: `custom-${Date.now()}`,
       name: `Custom ${selectedTemplate.name}`,
       price: selectedTemplate.price,
       image: preview,
     });
+
+    if (!added) return;
+
     toast.success(`Custom ${selectedTemplate.name} added to cart!`);
     reset();
   };

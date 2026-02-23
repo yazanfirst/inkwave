@@ -14,6 +14,7 @@ import Admin from "./pages/Admin";
 import AdminLogin from "./pages/AdminLogin";
 import Customize from "./pages/Customize";
 import NotFound from "./pages/NotFound";
+import LoadingPage from "./pages/LoadingPage";
 
 const queryClient = new QueryClient();
 
@@ -33,6 +34,7 @@ const App = () => (
                 <Route path="/customize" element={<Customize />} />
                 <Route path="/cart" element={<Cart />} />
                 <Route path="/checkout" element={<Checkout />} />
+                <Route path="/loading" element={<LoadingPage />} />
                 <Route path="/admin-login" element={<AdminLogin />} />
                 <Route path="/admin" element={<Admin />} />
                 <Route path="*" element={<NotFound />} />

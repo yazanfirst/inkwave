@@ -8,8 +8,10 @@ const ProductCard = ({ product }: { product: Product }) => {
   const { addItem } = useCart();
 
   const handleAdd = () => {
-    addItem({ id: product.id, name: product.name, price: product.price, image: product.image });
-    toast.success(`${product.name} added to cart!`);
+    const added = addItem({ id: product.id, name: product.name, price: product.price, image: product.image });
+    if (added) {
+      toast.success(`${product.name} added to cart!`);
+    }
   };
 
   return (
